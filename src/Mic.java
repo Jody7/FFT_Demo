@@ -10,6 +10,7 @@ public class Mic {
     byte[] data;
     DataLine.Info dataLineInfo;
 
+
     TargetDataLine microphone;
     ByteArrayOutputStream out = new ByteArrayOutputStream();
 
@@ -26,7 +27,7 @@ public class Mic {
     }
 
     public void createMic(){
-        AudioFormat format = new AudioFormat(16000.0f, 16, 1, true, true);
+        AudioFormat format = new AudioFormat(6 * 8000.0f, 16, 1, true, true);
         try {
             DataLine.Info info = new DataLine.Info(TargetDataLine.class, format);
             microphone = (TargetDataLine) AudioSystem.getLine(info);
@@ -43,7 +44,7 @@ public class Mic {
     }
     public void getData(ByteArrayOutputStream out){
         int bytesRead = 0;
-        while (bytesRead < 10000) {
+        while (bytesRead < 3000) {
             numBytesRead = microphone.read(data, 0, CHUNK_SIZE);
             bytesRead += numBytesRead;
             // write the mic data to a stream for use later

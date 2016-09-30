@@ -2,8 +2,14 @@ import oracle.jrockit.jfr.JFR;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
+import org.jfree.chart.axis.NumberAxis;
+import org.jfree.chart.axis.NumberTickUnit;
+import org.jfree.chart.axis.ValueAxis;
 import org.jfree.chart.plot.PlotOrientation;
+import org.jfree.chart.plot.XYPlot;
 import org.jfree.data.category.DefaultCategoryDataset;
+import org.jfree.data.xy.XYSeries;
+import org.jfree.data.xy.XYSeriesCollection;
 import org.jfree.ui.RefineryUtilities;
 
 import javax.swing.*;
@@ -35,28 +41,34 @@ public class Main{
         frame.setVisible(true);
 
         Mic mic = new Mic();
+        //WAV wav = new WAV("C:\\bwv80.wav");
 
         //byte[] buffer = new byte[100000];
 
-        while(true){
-            try{
-            Thread.sleep(100);
-            }catch(Exception e){
-                e.printStackTrace();
-            }
+        int incrementer = 1;
 
-            DefaultCategoryDataset dataSet = new DefaultCategoryDataset();
+        while(true){
 
             byte[] dataChunk = mic.getDataChunk();
 
             //System.arraycopy(dataChunk, 0, buffer, 0, dataChunk.length);
-            System.out.println(dataChunk.length);
 
-            JFreeChart chart = ChartFactory.createLineChart(
-                    "FFT data", "Normalized Freq", "Magnitude", fft.calculateExisting(dataChunk), PlotOrientation.VERTICAL, true, true, false
+            JFreeChart chart = ChartFactory.createXYBarChart(
+                    "FFT data", "Normalized Freq", false, "Magnitude", fft.calculateExisting(dataChunk), PlotOrientation.VERTICAL, true, true, false
             );
 
+            NumberAxis yaxis = (NumberAxis) chart.getXYPlot().getRangeAxis();
+            NumberAxis xaxis = (NumberAxis) chart.getXYPlot().getDomainAxis();
+            yaxis.setRange(0, 50000);
+            xaxis.setRange(4000, 5000);
+
+            yaxis.setAutoRangeIncludesZero(false);
+
             ChartPanel panel = new ChartPanel(chart);
+
+            panel.setDomainZoomable(false);
+            panel.setRangeZoomable(false);
+
 
             content.removeAll();
             content.add(panel);
@@ -69,6 +81,14 @@ public class Main{
             panel = new ChartPanel(chart);
             panel.repaint();
 
+
+            try{
+                Thread.sleep(50);
+            }catch(Exception e){
+                e.printStackTrace();
+            }
+
+
         }
 
     }
@@ -77,9 +97,10 @@ public class Main{
 class FFTMain{
     FFT fft = new FFT();
 
-    public DefaultCategoryDataset calculate(int channel) {
+    public XYSeriesCollection calculate(int channel) {
 
-        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+        XYSeriesCollection dataSetXY = new XYSeriesCollection();
+        XYSeries series = new XYSeries("FFT");
 
         int[][] oldPCM = PCM.PCMtoArray("C:\\100hz.wav");
         int oldPCMLen = oldPCM[channel].length;
@@ -135,7 +156,7 @@ class FFTMain{
 
         //System.out.println("Padded Length: " + padLength);
 
-        int avg = 1;
+        int avg = 2;
         for (int i = 0; i < padLength; i = i + avg) {
             int calc = 0;
             for (int f = 0; f < avg; f++) {
@@ -147,19 +168,21 @@ class FFTMain{
             calc = calc / avg;
             //System.out.println(a.real + " : " + a.imagniary);
             if (calc != 0) {
-                dataset.addValue(calc, "fft", df.format(res[i].imagniary));
+                series.add(i, calc);
             }
             p++;
 
         }
 
+        dataSetXY.addSeries(series);
 
-        return dataset;
+        return dataSetXY;
     }
 
-    public DefaultCategoryDataset calculateExisting(byte[] micData) {
+    public XYSeriesCollection calculateExisting(byte[] micData) {
 
-        DefaultCategoryDataset dataset = new DefaultCategoryDataset();
+        XYSeriesCollection dataSetXY = new XYSeriesCollection();
+        XYSeries series = new XYSeries("FFT");
 
         int[] newData = new int[micData.length];
 
@@ -177,15 +200,15 @@ class FFTMain{
         sampleData = new double[(int) padLength];
         // pad with 0's to get a multiple of 2 FFT data input
 
-        //NORAMALIZATION
+        //AUDIO FILTERING
         int max = PCM.getMaxValue(newData);
+
 
         for (int i = 0; i < oldPCMLen; i++) {
             //copy data over + normalization
             double x = newData[i];
-            sampleData[i] = (double) x / (double) max;
-            //System.out.println(sampleData[i]);
-            //System.out.println(x);
+            sampleData[i] = Math.pow(x, 2)/100;
+
         }
 
 
@@ -204,8 +227,7 @@ class FFTMain{
             //System.out.println(pcmData[i]);
         }
 
-        System.out.println(data.length);
-        System.out.println("----");
+
 
         Complex[] res = fft.CooleyTukeyFFT(data);
 
@@ -234,13 +256,19 @@ class FFTMain{
             }
             calc = calc / avg;
             //System.out.println(a.real + " : " + a.imagniary);
-            if (calc != 0) {
-                dataset.addValue(calc, "fft", df.format(res[i].imagniary));
+            if (calc > 0) {
+                series.add(i/avg, calc);
             }
             p++;
 
         }
 
-        return dataset;
+
+
+        //System.out.println(p);
+
+        dataSetXY.addSeries(series);
+
+        return dataSetXY;
     }
 }
